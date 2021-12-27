@@ -2,16 +2,23 @@
 
 An API for basic info about the STARS token supply.
 
-Example response:
+The base route `/` returns all info in JSON:
 
 ```json
 {
-  "circulatingSupply": "31511686.018182",
-  "communityPool": "20008679.404121",
+  "circulatingSupply": "834440089.553646",
+  "communityPool": "165559530.412553",
   "denom": "STARS",
-  "totalSupply": "65336746.085331"
+  "totalSupply": "999999619.9662"
 }
 ```
+
+## Other routes
+
+- `/circulating-supply`: returns circulating supply in plain text
+- `/total-supply`: returns total supply in plain text
+- `/community-pool`: returns community pool size in plain text
+- `/denom`: returns denom in plain text
 
 ### How circulating supply is calculated
 
