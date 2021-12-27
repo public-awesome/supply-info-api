@@ -28,12 +28,12 @@ let totalSupply, communityPool, circulatingSupply;
 
 // Gets supply info from chain
 async function updateData() {
-    console.log("Updating supply info", new Date());
+  console.log("Updating supply info", new Date());
 
   // Get total supply
   totalSupply = await axios({
     method: "get",
-    url: `${process.env.REST_API_ENDPOINT}/cosmos/bank/v1beta1/supply/ujuno`,
+    url: `${process.env.REST_API_ENDPOINT}/cosmos/bank/v1beta1/supply/ustars`,
   });
   console.log("Total supply: ", totalSupply.data.amount.amount);
 
@@ -80,7 +80,7 @@ app.get("/", async (req, res) => {
       communityPool.data.pool[0].amount.split(".")[0],
       6
     ).toString(),
-    denom: "JUNO",
+    denom: "STARS",
     totalSupply: Decimal.fromAtomics(
       totalSupply.data.amount.amount,
       6
@@ -89,25 +89,24 @@ app.get("/", async (req, res) => {
 });
 
 app.get("/circulating-supply", async (req, res) => {
-  res.send(Decimal.fromAtomics(circulatingSupply, 6).toString())
+  res.send(Decimal.fromAtomics(circulatingSupply, 6).toString());
 });
 
 app.get("/total-supply", async (req, res) => {
-  res.send(Decimal.fromAtomics(
-      totalSupply.data.amount.amount,
-      6
-  ).toString())
+  res.send(Decimal.fromAtomics(totalSupply.data.amount.amount, 6).toString());
 });
 
 app.get("/community-pool", async (req, res) => {
-  res.send(Decimal.fromAtomics(
+  res.send(
+    Decimal.fromAtomics(
       communityPool.data.pool[0].amount.split(".")[0],
       6
-    ).toString())
+    ).toString()
+  );
 });
 
 app.get("/denom", async (req, res) => {
-  res.send("JUNO")
+  res.send("STARS");
 });
 
 app.listen(port, () => {
