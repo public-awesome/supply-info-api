@@ -26,7 +26,13 @@ async function makeClientWithAuth(rpcUrl) {
 }
 
 // Declare variables
-let totalSupply, communityPool, communityPoolMainDenomTotal, circulatingSupply;
+let totalSupply,
+  communityPool,
+  communityPoolMainDenomTotal,
+  circulatingSupply,
+  apr,
+  bondedRatio,
+  totalStaked;
 
 // Gets supply info from chain
 async function updateData() {
@@ -44,6 +50,20 @@ async function updateData() {
     method: "get",
     url: `${process.env.REST_API_ENDPOINT}/cosmos/distribution/v1beta1/community_pool`,
   });
+
+  // Get staking info
+  stakingInfo = await axios({
+    method: "get",
+    url: `${process.env.REST_API_ENDPOINT}/cosmos/staking/v1beta1/pool`,
+  });
+
+  totalStaked = stakingInfo.data.pool.bonded_tokens;
+  bondedRatio = totalStaked / totalSupply.data.amount.amount;
+  apr = 35 / bondedRatio;
+
+  console.log("APR: ", apr);
+  console.log("Total Staked: ", totalStaked);
+  console.log("Bonded ratio: ", bondedRatio);
 
   // Loop through pool balances to find denom
   for (let i in communityPool.data.pool) {
@@ -85,12 +105,15 @@ setInterval(updateData, 7200000);
 
 app.get("/", async (req, res) => {
   res.json({
+    apr,
+    bondedRatio,
     circulatingSupply: Decimal.fromAtomics(circulatingSupply, 6).toString(),
     communityPool: Decimal.fromAtomics(
       communityPoolMainDenomTotal.split(".")[0],
       6
     ).toString(),
     denom: denom.substring(1).toUpperCase(),
+    totalStaked: Decimal.fromAtomics(totalStaked, 6).toString(),
     totalSupply: Decimal.fromAtomics(
       totalSupply.data.amount.amount,
       6
@@ -98,8 +121,20 @@ app.get("/", async (req, res) => {
   });
 });
 
+app.get("/apr", async (req, res) => {
+  res.send(apr.toString());
+});
+
+app.get("/bonded-ratio", async (req, res) => {
+  res.send(bondedRatio.toString());
+});
+
 app.get("/circulating-supply", async (req, res) => {
   res.send(Decimal.fromAtomics(circulatingSupply, 6).toString());
+});
+
+app.get("/total-staked", async (req, res) => {
+  res.send(Decimal.fromAtomics(totalStaked, 6).toString());
 });
 
 app.get("/total-supply", async (req, res) => {
