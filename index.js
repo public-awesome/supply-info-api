@@ -12,6 +12,7 @@ const {
 require("dotenv").config();
 
 const denom = process.env.DENOM || "ustars";
+const interval = process.env.INTERVAL || 7200000;
 
 const vestingAccounts = process.env.VESTING_ACCOUNTS
   ? process.env.VESTING_ACCOUNTS.split(",")
@@ -30,78 +31,86 @@ let totalSupply,
   communityPool,
   communityPoolMainDenomTotal,
   circulatingSupply,
+  tmpCirculatingSupply,
   apr,
   bondedRatio,
   totalStaked;
 
 // Gets supply info from chain
 async function updateData() {
-  console.log("Updating supply info", new Date());
+  try {
+    // Create Tendermint RPC Client
+    const [client, tmClient] = await makeClientWithAuth(
+      process.env.RPC_ENDPOINT
+    );
 
-  // Get total supply
-  totalSupply = await axios({
-    method: "get",
-    url: `${process.env.REST_API_ENDPOINT}/cosmos/bank/v1beta1/supply/${denom}`,
-  });
-  console.log("Total supply: ", totalSupply.data.amount.amount);
+    console.log("Updating supply info", new Date());
 
-  // Get community pool
-  communityPool = await axios({
-    method: "get",
-    url: `${process.env.REST_API_ENDPOINT}/cosmos/distribution/v1beta1/community_pool`,
-  });
+    // Get total supply
+    totalSupply = await axios({
+      method: "get",
+      url: `${process.env.REST_API_ENDPOINT}/cosmos/bank/v1beta1/supply/${denom}`,
+    });
+    console.log("Total supply: ", totalSupply.data.amount.amount);
 
-  // Get staking info
-  stakingInfo = await axios({
-    method: "get",
-    url: `${process.env.REST_API_ENDPOINT}/cosmos/staking/v1beta1/pool`,
-  });
+    // Get community pool
+    communityPool = await axios({
+      method: "get",
+      url: `${process.env.REST_API_ENDPOINT}/cosmos/distribution/v1beta1/community_pool`,
+    });
 
-  totalStaked = stakingInfo.data.pool.bonded_tokens;
-  bondedRatio = totalStaked / totalSupply.data.amount.amount;
-  apr = 35 / bondedRatio;
+    // Get staking info
+    stakingInfo = await axios({
+      method: "get",
+      url: `${process.env.REST_API_ENDPOINT}/cosmos/staking/v1beta1/pool`,
+    });
 
-  console.log("APR: ", apr);
-  console.log("Total Staked: ", totalStaked);
-  console.log("Bonded ratio: ", bondedRatio);
+    totalStaked = stakingInfo.data.pool.bonded_tokens;
+    bondedRatio = totalStaked / totalSupply.data.amount.amount;
+    apr = 35 / bondedRatio;
 
-  // Loop through pool balances to find denom
-  for (let i in communityPool.data.pool) {
-    if (communityPool.data.pool[i].denom === denom) {
-      console.log("Community pool: ", communityPool.data.pool[i].amount);
+    console.log("APR: ", apr);
+    console.log("Total Staked: ", totalStaked);
+    console.log("Bonded ratio: ", bondedRatio);
 
-      communityPoolMainDenomTotal = communityPool.data.pool[i].amount;
+    // Loop through pool balances to find denom
+    for (let i in communityPool.data.pool) {
+      if (communityPool.data.pool[i].denom === denom) {
+        console.log("Community pool: ", communityPool.data.pool[i].amount);
 
-      // Subtract community pool from total supply
-      circulatingSupply =
-        totalSupply.data.amount.amount - communityPool.data.pool[i].amount;
+        communityPoolMainDenomTotal = communityPool.data.pool[i].amount;
+
+        // Subtract community pool from total supply
+        tmpCirculatingSupply =
+          totalSupply.data.amount.amount - communityPool.data.pool[i].amount;
+      }
     }
+
+    // Iterate through vesting accounts and subtract vesting balance from total
+    for (let i = 0; i < vestingAccounts.length; i++) {
+      const account = await client.auth.account(vestingAccounts[i]);
+      let accountInfo = PeriodicVestingAccount.decode(account.value);
+      let originalVesting =
+        accountInfo.baseVestingAccount.originalVesting[0].amount;
+      let delegatedFree =
+        accountInfo.baseVestingAccount.delegatedFree.length > 0
+          ? accountInfo.baseVestingAccount.delegatedFree[0].amount
+          : 0;
+
+      tmpCirculatingSupply -= originalVesting - delegatedFree;
+    }
+    circulatingSupply = tmpCirculatingSupply;
+    console.log("Circulating supply: ", circulatingSupply);
+  } catch (e) {
+    console.error(e);
   }
-
-  // Create Tendermint RPC Client
-  const [client, tmClient] = await makeClientWithAuth(process.env.RPC_ENDPOINT);
-
-  // Iterate through vesting accounts and subtract vesting balance from total
-  for (let i = 0; i < vestingAccounts.length; i++) {
-    const account = await client.auth.account(vestingAccounts[i]);
-    let accountInfo = PeriodicVestingAccount.decode(account.value);
-    let originalVesting =
-      accountInfo.baseVestingAccount.originalVesting[0].amount;
-    let delegatedFree =
-      accountInfo.baseVestingAccount.delegatedFree.length > 0
-        ? accountInfo.baseVestingAccount.delegatedFree[0].amount
-        : 0;
-
-    circulatingSupply -= originalVesting - delegatedFree;
-  }
-  console.log("Circulating supply: ", circulatingSupply);
 }
 
 // Get initial data
 updateData();
 
 // Update data on an interval (2 hours)
-setInterval(updateData, 7200000);
+setInterval(updateData, interval);
 
 app.get("/", async (req, res) => {
   res.json({
