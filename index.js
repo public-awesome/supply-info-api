@@ -1,5 +1,6 @@
 const axios = require("axios");
 const express = require("express");
+const cors = require('cors');
 const { Decimal } = require("@cosmjs/math");
 const { QueryClient, setupAuthExtension } = require("@cosmjs/stargate");
 const { Tendermint34Client } = require("@cosmjs/tendermint-rpc");
@@ -19,6 +20,7 @@ const vestingAccounts = process.env.VESTING_ACCOUNTS
   : [];
 
 const app = express();
+app.use(cors());
 const port = process.env.PORT || 3000;
 
 async function makeClientWithAuth(rpcUrl) {
