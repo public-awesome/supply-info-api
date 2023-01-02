@@ -1,6 +1,6 @@
 const axios = require("axios");
 const express = require("express");
-const cors = require('cors');
+const cors = require('cors')
 const { Decimal } = require("@cosmjs/math");
 const { QueryClient, setupAuthExtension } = require("@cosmjs/stargate");
 const { Tendermint34Client } = require("@cosmjs/tendermint-rpc");
@@ -69,7 +69,8 @@ async function updateData() {
 
     totalStaked = stakingInfo.data.pool.bonded_tokens;
     bondedRatio = totalStaked / totalSupply.data.amount.amount;
-    apr = (35 / 1.05) / bondedRatio;
+	  console.log("total staked", totalStaked);
+    apr = (400000000/1.05) / (totalStaked/1000000) * 67 ;
 
     console.log("APR: ", apr);
     console.log("Total Staked: ", totalStaked);
