@@ -70,7 +70,11 @@ async function updateData() {
     totalStaked = stakingInfo.data.pool.bonded_tokens;
     bondedRatio = totalStaked / totalSupply.data.amount.amount;
 	  console.log("total staked", totalStaked);
-    apr = (400000000/1.05) / (totalStaked/1000000) * 67 ;
+    annual_provisions = 259_700_000; // see tokenomic update
+    annual_supplement_amount = 36_499_668; // see tokenomics update
+    staking_allocation = 0.8; // 80 %
+    total_staked_in_stars = totalStaked / 1_000_000;
+    apr = ((annual_provisions + annual_supplement_amount) * staking_allocation ) / (total_staked_in_stars) * 100;
 
     console.log("APR: ", apr);
     console.log("Total Staked: ", totalStaked);
